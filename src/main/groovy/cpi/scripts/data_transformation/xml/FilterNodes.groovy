@@ -23,12 +23,12 @@ class FilterNodes {
             def nodes = parsedXml.'**'.findAll { it.name() == field }
 
             // Split the expression into parts by '&' and '|'
-            def andParts = criteriaExpression.split("&")
-            def orParts = criteriaExpression.split("\\|")
+            def andParts = criteriaExpression.split("&" as Closure)
+            def orParts = criteriaExpression.split("\\|" as Closure)
 
             // Filter nodes
             nodes.each { node ->
-                if (!evaluateExpression(node.text(), andParts, orParts)) {
+                if (!evaluateExpression(node.text(), andParts as List<String>, orParts as List<String>)) {
                     node.replaceNode {}
                 }
             }
