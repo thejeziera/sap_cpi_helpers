@@ -1,4 +1,7 @@
 package cpi.scripts.connectivity.ssl
 
-class CertificateValidator {
+import com.sap.gateway.ip.core.customdev.util.Message
+
+def Message processData(Message message) {
+    return message
 }

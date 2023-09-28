@@ -1,4 +1,7 @@
 package cpi.scripts.mapping.udf.conversion_functions
 
-class TypeConverter {
+import com.sap.gateway.ip.core.customdev.util.Message
+
+def Message processData(Message message) {
+    return message
 }

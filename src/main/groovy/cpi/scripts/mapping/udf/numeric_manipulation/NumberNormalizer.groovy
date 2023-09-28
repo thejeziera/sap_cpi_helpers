@@ -1,4 +1,7 @@
 package cpi.scripts.mapping.udf.numeric_manipulation
 
-class NumberNormalizer {
+import com.sap.gateway.ip.core.customdev.util.Message
+
+def Message processData(Message message) {
+    return message
 }

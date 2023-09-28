@@ -1,4 +1,7 @@
 package cpi.scripts.mapping.udf.datetime_manipulation
 
-class DateTimeFormatter {
+import com.sap.gateway.ip.core.customdev.util.Message
+
+def Message processData(Message message) {
+    return message
 }

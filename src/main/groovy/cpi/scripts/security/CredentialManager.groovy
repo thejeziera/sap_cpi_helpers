@@ -1,4 +1,7 @@
 package cpi.scripts.security
 
-class CredentialManager {
+import com.sap.gateway.ip.core.customdev.util.Message
+
+def Message processData(Message message) {
+    return message
 }

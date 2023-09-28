@@ -1,4 +1,7 @@
 package cpi.scripts.protocol_adapters.sftp
 
-class SftpFileTransfer {
+import com.sap.gateway.ip.core.customdev.util.Message
+
+def Message processData(Message message) {
+    return message
 }

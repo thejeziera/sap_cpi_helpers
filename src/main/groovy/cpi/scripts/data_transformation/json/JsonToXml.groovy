@@ -1,4 +1,7 @@
 package cpi.scripts.data_transformation.json
 
-class JsonToXml {
+import com.sap.gateway.ip.core.customdev.util.Message
+
+def Message processData(Message message) {
+    return message
 }

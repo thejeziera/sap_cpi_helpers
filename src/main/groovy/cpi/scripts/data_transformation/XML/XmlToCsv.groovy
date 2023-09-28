@@ -1,4 +1,7 @@
 package cpi.scripts.data_transformation.xml
 
-class XmlToCsv {
+import com.sap.gateway.ip.core.customdev.util.Message
+
+def Message processData(Message message) {
+    return message
 }

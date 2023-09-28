@@ -1,4 +1,7 @@
 package cpi.scripts.routing
 
-class MessageRouter {
+import com.sap.gateway.ip.core.customdev.util.Message
+
+def Message processData(Message message) {
+    return message
 }
