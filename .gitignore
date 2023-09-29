@@ -13,6 +13,7 @@ out/
 # Gradle files
 .gradle/
 build/
+/gradle/
 
 # Groovy libs
 lib/

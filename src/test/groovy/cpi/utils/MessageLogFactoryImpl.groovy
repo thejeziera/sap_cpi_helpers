@@ -10,7 +10,11 @@ class MessageLogFactoryImpl {
 
     class MessageLogImpl {
         void addAttachmentAsString(String name, String content, String contentType) {
-            println "Attachment Name: $name, Content: $content, ContentType: $contentType"
+            println "Attachment - Name: $name, Content: $content, ContentType: $contentType"
+        }
+
+        void addCustomHeaderProperty(String name, String value) {
+            println "Custom CPI Log Header - Name: $name, Value: $value"
         }
     }
 }

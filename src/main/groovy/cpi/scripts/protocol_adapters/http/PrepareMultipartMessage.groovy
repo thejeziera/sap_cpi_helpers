@@ -29,7 +29,7 @@ def Message processData(Message message) {
     message.setProperty("p_attachment_filename", fileName)
 
     // Extract binary data from the message body
-    byte[] attachmentBinaryData = message.getBody(byte[].class)
+    byte[] attachmentBinaryData = message.getBody() as byte[]
 
     // Retrieve the Expense body for creating the multipart message
     def concurBody = message.getProperty("p_expense_body")

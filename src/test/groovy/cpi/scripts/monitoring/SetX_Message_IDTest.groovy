@@ -1,15 +1,12 @@
-package cpi.scripts.error_handling
+package cpi.scripts.monitoring
 
 import com.sap.gateway.ip.core.customdev.processor.MessageImpl
 import com.sap.gateway.ip.core.customdev.util.Message
 import cpi.utils.CPIScriptEnhancer
-import org.apache.camel.Exchange
-import org.apache.camel.impl.DefaultCamelContext
-import org.apache.camel.impl.DefaultExchange
 import spock.lang.Shared
 import spock.lang.Specification
 
-class HandleExceptionTest extends Specification{
+class SetX_Message_IDTest extends Specification{
 
     @Shared
     Script script
@@ -19,7 +16,7 @@ class HandleExceptionTest extends Specification{
 
     def setupSpec() {
         // Load Groovy Script by its package and class name
-        Class scriptClass = classLoader.loadClass("cpi.scripts.error_handling.HandleException")
+        Class scriptClass = classLoader.loadClass("cpi.scripts.monitoring.SetX_Message_ID")
 
         // Create an instance of the script
         script = scriptClass.getDeclaredConstructor().newInstance() as Script
@@ -32,14 +29,15 @@ class HandleExceptionTest extends Specification{
         this.msg = new MessageImpl()
     }
 
-    def "Initial test with 401 HTTP"() {
-        given: "CamelHttpResponseCode is set to 401"
-        this.msg.setHeader("CamelHttpResponseCode", "401")
+    def "Initial test"() {
+        given: "body is set to a sample message"
+        this.msg.setBody("TEST")
+        this.msg.setHeader("SAP_MessageProcessingLogID", UUID.randomUUID().toString())
 
         when: "we execute the Groovy script"
         script.processData(this.msg)
 
         then: "script is executed"
-        this.msg.getProperty("p_error_code") == "HTTP_401"
+        this.msg.getBody() != null
     }
 }
