@@ -27,7 +27,7 @@ def Message processData(Message message) {
 
         // Filter nodes
         nodes.each { node ->
-            if (!evaluateExpression(node.text(), andParts, orParts)) {
+            if (!evaluateExpression(node.text(), andParts as List<String>, orParts)) {
                 node.replaceNode {}
             }
         }

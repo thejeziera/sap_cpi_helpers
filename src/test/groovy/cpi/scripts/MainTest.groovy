@@ -1,4 +1,4 @@
-package cpi.scripts.data_transformation.csv
+package cpi.scripts
 
 import com.sap.gateway.ip.core.customdev.processor.MessageImpl
 import com.sap.gateway.ip.core.customdev.util.Message
@@ -6,7 +6,7 @@ import cpi.utils.CPIScriptEnhancer
 import spock.lang.Shared
 import spock.lang.Specification
 
-class CsvToJsonTest extends Specification {
+class MainTest extends Specification{
 
     @Shared
     Script script
@@ -16,7 +16,7 @@ class CsvToJsonTest extends Specification {
 
     def setupSpec() {
         // Load Groovy Script by its package and class name
-        Class scriptClass = classLoader.loadClass("cpi.scripts.data_transformation.csv.CsvToJson")
+        Class scriptClass = classLoader.loadClass("cpi.scripts.Main")
 
         // Create an instance of the script
         script = scriptClass.getDeclaredConstructor().newInstance() as Script
@@ -29,15 +29,14 @@ class CsvToJsonTest extends Specification {
         this.msg = new MessageImpl()
     }
 
-    def "Csv body is transformed to json"() {
-
-        given: "body is set to a simple csv"
-        this.msg.setBody("header_field1,header_field2\nvalue1,value2")
+    def "Initial test"() {
+        given: "body is set to a sample message"
+        this.msg.setBody("TEST")
 
         when: "we execute the Groovy script"
         script.processData(this.msg)
 
-        then: "we get the csv body parsed to json"
-        this.msg.getBody() == "[{\"header_field1\":\"value1\",\"header_field2\":\"value2\"}]"
+        then: "script is executed"
+        this.msg.getBody() != null
     }
 }
