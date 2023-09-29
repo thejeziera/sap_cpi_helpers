@@ -2,6 +2,7 @@ package cpi.scripts.error_handling
 
 import com.sap.gateway.ip.core.customdev.processor.MessageImpl
 import com.sap.gateway.ip.core.customdev.util.Message
+import cpi.utils.CPIScriptEnhancer
 import org.apache.camel.Exchange
 import org.apache.camel.impl.DefaultCamelContext
 import org.apache.camel.impl.DefaultExchange
@@ -22,6 +23,9 @@ class HandleExceptionTest extends Specification {
 
         // Create an instance of the script
         script = scriptClass.getDeclaredConstructor().newInstance() as Script
+
+        // Mix in the trait to add extra methods and fields
+        CPIScriptEnhancer.enhanceScript(script)
     }
 
     def setup() {

@@ -2,6 +2,7 @@ package cpi.scripts.data_transformation.csv
 
 import com.sap.gateway.ip.core.customdev.processor.MessageImpl
 import com.sap.gateway.ip.core.customdev.util.Message
+import cpi.utils.CPIScriptEnhancer
 import org.apache.camel.Exchange
 import org.apache.camel.impl.DefaultCamelContext
 import org.apache.camel.impl.DefaultExchange
@@ -10,7 +11,8 @@ import spock.lang.Specification
 
 class CsvToJsonTest extends Specification {
 
-    @Shared Script script
+    @Shared
+    Script script
     private Message msg
 
     def setupSpec() {
@@ -22,24 +24,13 @@ class CsvToJsonTest extends Specification {
 
         // Create an instance of the script
         script = scriptClass.getDeclaredConstructor().newInstance() as Script
+
+        // Mix in the trait to add extra methods and fields
+        CPIScriptEnhancer.enhanceScript(script)
     }
 
     def setup() {
-        // Initialize Camel context and create a new Exchange
-        DefaultCamelContext camelContext = new DefaultCamelContext()
-        Exchange exchange = new DefaultExchange(camelContext)
-
-        // Set the payload in the Exchange's In message
-        String payload = "{key: \"value\"}}"
-        exchange.getIn().setBody(payload)
-
-        // Set HTTP-specific headers in the Exchange's In message
-        exchange.getIn().setHeader(Exchange.HTTP_METHOD, "GET")
-        exchange.getIn().setHeader(Exchange.CONTENT_TYPE, "application/json")
-        exchange.getIn().setHeader(Exchange.HTTP_URI, "https://example.com/api/resource")
-
-        // Initialize MessageImpl with the created Exchange
-        this.msg = new MessageImpl(exchange)
+        this.msg = new MessageImpl()
     }
 
     def "Csv body is transformed to json"() {
