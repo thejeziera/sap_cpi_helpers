@@ -1,8 +1,8 @@
 package cpi.scripts.mapping.udf.numeric_manipulation
 
-import com.sap.gateway.ip.core.customdev.processor.MessageImpl
 import com.sap.gateway.ip.core.customdev.util.Message
 import cpi.utils.CPIScriptEnhancer
+import cpi.utils.MessageImpl
 import spock.lang.Shared
 import spock.lang.Specification
 
