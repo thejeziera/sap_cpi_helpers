@@ -18,14 +18,8 @@ dependencies {
     implementation 'org.osgi:org.osgi.framework:1.10.0'
 
     implementation files('sap_libs/cloud.integration.script.apis-2.7.1.jar')
-    implementation files('sap_libs/com.sap.ip.core.customdev.jar')
-    implementation files('sap_libs/com.sap.it.api.jar')
-    implementation files('sap_libs/com.sap.it.commons.jar')
-    implementation files('sap_libs/com.sap.it.commons.logging.slf4j.jar')
     implementation files('sap_libs/com.sap.it.public.adapter.api-2.25.0.jar')
     implementation files('sap_libs/com.sap.it.public.generic.api-2.25.0.jar')
-    implementation files('sap_libs/com.sap.it.script.script.engine.api.jar')
-    implementation files('sap_libs/opentest4j-1.2.0.jar')
     implementation files('sap_libs/org.apache.camel.jar')
     implementation files('sap_libs/org.ops4j.pax.logging.pax-logging-api.jar')
 

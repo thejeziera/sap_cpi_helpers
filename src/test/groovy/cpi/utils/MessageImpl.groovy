@@ -1,21 +1,17 @@
 package cpi.utils
 
-import com.sap.gateway.ip.core.customdev.processor.SoapHeaders
 import com.sap.gateway.ip.core.customdev.util.AttachmentWrapper
 import com.sap.gateway.ip.core.customdev.util.Message
 import com.sap.gateway.ip.core.customdev.util.SoapHeader
-import com.sap.it.api.msg.ExchangePropertyProvider
-import com.sap.it.api.msg.MessageSizeInformation
-import com.sap.it.api.msglog.MessageLog
-import com.sap.it.script.logging.ILogger
-import com.sap.it.script.logging.impl.ScriptLogger
+
 import org.apache.camel.Attachment
 import org.apache.camel.Exchange
 import org.apache.camel.TypeConversionException
+import org.apache.camel.impl.DefaultAttachment
 
 import javax.activation.DataHandler
 
-class MessageImpl implements ExchangePropertyProvider, Message {
+class MessageImpl implements Message {
     private static final String SAP_SOAP_HEADER_WRITE = "SAP_SoapHeaderWrite";
     private static final String SAP_SOAP_HEADER_READ = "SAP_SoapHeaderRead";
     private Object payload;
@@ -23,10 +19,11 @@ class MessageImpl implements ExchangePropertyProvider, Message {
     private Map<String, Object> properties;
     private Exchange exchange;
     private Map<String, DataHandler> attachments;
-    private Map<String, AttachmentWrapper> attachmentWrapperObjects;
+    private Map<String, DefaultAttachment> attachmentWrapperObjects;
     private Map<String, Attachment> attachmentObjects;
-    private static final ILogger log = ScriptLogger.getCategoryLogger(com.sap.gateway.ip.core.customdev.processor.MessageImpl.class);
-    private MessageLog messageLog
+    private static final ScriptLogger log = ScriptLogger.getCategoryLogger(MessageImpl.class);
+    private MessageLogImpl messageLog
+    private List<SoapHeader> soapHeaderList = new ArrayList<>()
 
     public MessageImpl() {
     }
@@ -44,9 +41,9 @@ class MessageImpl implements ExchangePropertyProvider, Message {
             } else {
                 return obj;
             }
-        } catch (TypeConversionException var3) {
-            log.logErrors(new Object[]{var3.getMessage()});
-            throw var3;
+        } catch (TypeConversionException exception) {
+            log.logErrors(new Object[]{exception.getMessage()});
+            throw exception;
         }
     }
 
@@ -123,13 +120,11 @@ class MessageImpl implements ExchangePropertyProvider, Message {
     }
 
     public long getBodySize() {
-        MessageSizeInformation info = (MessageSizeInformation)this.getBody(MessageSizeInformation.class);
-        return info == null ? -1L : info.getBodySize();
+        return body == null ? -1L : ((body as String).length() + 0L);
     }
 
     public long getAttachmentsSize() {
-        MessageSizeInformation info = (MessageSizeInformation)this.getBody(MessageSizeInformation.class);
-        return info == null ? -1L : info.getAttachmentsSize();
+        return attachments == null ? -1L : ((attachments as String).length() + 0L);
     }
 
     public void addAttachmentHeader(String headerName, String headerValue, AttachmentWrapper attachment) {
@@ -148,7 +143,7 @@ class MessageImpl implements ExchangePropertyProvider, Message {
         attachment.removeHeader(headerName);
     }
 
-    public Map<String, AttachmentWrapper> getAttachmentWrapperObjects() {
+    public Map<String, DefaultAttachment> getAttachmentWrapperObjects() {
         return this.attachmentWrapperObjects;
     }
 
@@ -203,34 +198,22 @@ class MessageImpl implements ExchangePropertyProvider, Message {
     }
 
     public List<SoapHeader> getSoapHeaders() {
-        SoapHeaders headers = new SoapHeaders((List)this.exchange.getProperty("SAP_SoapHeaderRead"), (List)this.exchange.getIn().getHeader(Header.HEADER_LIST, List.class));
-        return headers.getSoapHeaders();
+        return soapHeaderList
     }
 
     public void setSoapHeaders(List<SoapHeader> headers) {
-        SoapHeaders headersObj = new SoapHeaders((List)this.exchange.getProperty("SAP_SoapHeaderRead"), (List)this.exchange.getIn().getHeader(Header.HEADER_LIST, List.class));
-//        List<org.apache.cxf.binding.soap.SoapHeader> cxfSoapHeaders = headersObj.setSoapHeaders(headers, Direction.DIRECTION_OUT);
-        List<Object> cxfSoapHeaders = headersObj.setSoapHeaders(headers, Direction.DIRECTION_OUT);
-//        List<org.apache.cxf.binding.soap.SoapHeader> oldHeaders = (List)this.exchange.getProperty("SAP_SoapHeaderWrite");
-        List<Object> oldHeaders = (List)this.exchange.getProperty("SAP_SoapHeaderWrite");
-        if (oldHeaders == null) {
-            this.exchange.setProperty("SAP_SoapHeaderWrite", cxfSoapHeaders);
-        } else {
-            oldHeaders.addAll(cxfSoapHeaders);
-        }
-
+        soapHeaderList = headers
     }
 
     public void clearSoapHeaders() {
-        SoapHeaders headersObj = new SoapHeaders((List)this.exchange.getProperty("SAP_SoapHeaderRead"), (List)this.exchange.getIn().getHeader(Header.HEADER_LIST, List.class));
-        headersObj.clearSoapHeaders();
+        soapHeaderList.clear()
     }
 
-    public void setMessageLog(MessageLog messageLog){
+    public void setMessageLog(MessageLogImpl messageLog){
         this.messageLog = messageLog
     }
 
-    public MessageLog getMessageLog() {
+    public MessageLogImpl getMessageLog() {
         return messageLog
     }
 }

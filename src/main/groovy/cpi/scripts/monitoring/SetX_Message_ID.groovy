@@ -1,7 +1,6 @@
 package cpi.scripts.monitoring
 
 import com.sap.gateway.ip.core.customdev.util.Message
-import com.sap.it.commons.logging.slf4j.LoggerFactory
 
 def Message processData(Message message) {
     def headers = message.getHeaders()
