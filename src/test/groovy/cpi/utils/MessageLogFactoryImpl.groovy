@@ -8,6 +8,8 @@ class MessageLogFactoryImpl implements MessageLogFactory {
 
     @Override
     MessageLog getMessageLog(Object o) {
+        if(o != null)
+            messageLog = new MessageLogImpl(o.toString())
         return messageLog
     }
 

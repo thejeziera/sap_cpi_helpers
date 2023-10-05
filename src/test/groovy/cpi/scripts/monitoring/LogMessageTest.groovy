@@ -46,7 +46,7 @@ class LogMessageTest extends Specification {
         this.msg.setHeader("Header1", "HeaderValue1")
         this.msg.setHeader("Header2", "HeaderValue2")
         this.msg.setProperty("Property1", "PropertyValue1")
-        this.msg.setMessageLog(this.script.messageLogFactory.getMessageLog(" "))
+        this.msg.setMessageLog(this.script.messageLogFactory.getMessageLog("LogMessage"))
 
         when: "we execute the Groovy script"
         script.processData(this.msg)

@@ -6,8 +6,19 @@ class MessageLogImpl implements MessageLog {
     def customHeaderPropertiesMap = new HashMap<String, String>()
     def messageLogPropertyMap = new HashMap<String, Object>()
     def attachmentMap = new HashMap<String, String>()
+    def scriptName = "null"
+
+    MessageLogImpl() {
+
+    }
+
+    MessageLogImpl(String name) {
+        this.scriptName = name
+    }
 
     void printMessageLogContent() {
+        println "=======MessageLog description:========="
+        println "Script: $scriptName"
         println "===========Custom Headers:============="
         customHeaderPropertiesMap.each {
             it ->
