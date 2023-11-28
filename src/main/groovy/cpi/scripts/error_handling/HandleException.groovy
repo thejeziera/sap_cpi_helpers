@@ -3,6 +3,8 @@ package cpi.scripts.error_handling
 import com.sap.gateway.ip.core.customdev.util.Message
 
 def Message processData(Message message) {
+    //TODO SPLIT FOR DIFFERENT ADAPTERS
+
     // Get the MessageLog object
     def messageLog = messageLogFactory.getMessageLog(message)
 
