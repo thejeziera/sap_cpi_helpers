@@ -5,9 +5,10 @@ import com.sap.gateway.ip.core.customdev.util.Message
 def Message processData(Message message) {
     def messageLog = messageLogFactory.getMessageLog(message)
 
+    //28.11.2023 After Camel Upgrade for HTTPS adapter a null is inserted as path header value (if it was empty)
     message.getHeaders().each {
         entry ->
-            messageLog?.addCustomHeaderProperty("HEADER_" + entry.key, entry.value as String)
+            messageLog?.addCustomHeaderProperty("HEADER_" + entry.key, entry as String)
     }
 
     message.getProperties().each {
