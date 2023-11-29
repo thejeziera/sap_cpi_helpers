@@ -1,7 +1,7 @@
 package cpi.scripts.data_transformation.csv
 
 import com.sap.gateway.ip.core.customdev.util.Message
-import groovy.json.JsonOutput
+import groovy.xml.MarkupBuilder
 
 def Message processData(Message message) {
     // Retrieve the CSV content from the message body
@@ -16,21 +16,25 @@ def Message processData(Message message) {
     // Extract the header fields from the first line
     def headers = lines[0].split(',')
 
-    // Process the data lines and convert them to a list of maps
-    def data = lines[1..-1].collect { line ->
-        def fields = line.split(',')
-        def rowMap = [:]
-        headers.eachWithIndex { header, index ->
-            rowMap[header.trim()] = fields[index].trim()
+    // Initialize a StringWriter for the XML output
+    def writer = new StringWriter()
+    def xml = new MarkupBuilder(writer)
+
+    // Start the XML document
+    xml.records {
+        // Process each data line
+        lines[1..-1].each { line ->
+            def fields = line.split(',')
+            xml.record {
+                headers.eachWithIndex { header, index ->
+                    "${header}".value(fields[index])
+                }
+            }
         }
-        return rowMap
     }
 
-    // Convert the list of maps to JSON
-    def jsonContent = JsonOutput.toJson(data)
-
-    // Set the JSON content as the message body
-    message.setBody(jsonContent)
+    // Set the XML content as the message body
+    message.setBody(writer.toString())
 
     return message
 }
