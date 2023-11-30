@@ -3,8 +3,6 @@ package cpi.scripts.error_handling
 import com.sap.gateway.ip.core.customdev.util.Message
 
 def Message processData(Message message) {
-    //TODO SPLIT FOR DIFFERENT ADAPTERS
-
     // Get the MessageLog object
     def messageLog = messageLogFactory.getMessageLog(message)
 
@@ -14,15 +12,15 @@ def Message processData(Message message) {
     messageLog.addAttachmentAsString("properties", message.getProperties().toString(), "text/plain")
 
     // Initialize status, message, and errorCode variables
-    String status = "error"
-    String messageText = "An error occurred during processing."
-    String errorCode = "ERR_CODE_DEFAULT"
+    def status = "error"
+    def messageText = "An error occurred during processing."
+    def errorCode = "ERR_CODE_DEFAULT"
 
     // Get the exception from the CamelExceptionCaught property
-    String camelException = message.getProperty("CamelExceptionCaught")
+    def camelException = message.getProperty("CamelExceptionCaught")
 
     // Get the current step name from the property
-    String currentStep = message.getProperty("p_current_step")
+    def currentStep = message.getProperty("p_current_step")
 
     // Check if the error is due to an HTTP response with status code 4XX or 5XX
     def httpResponseCode = message.getHeaders().get("CamelHttpResponseCode") as Integer

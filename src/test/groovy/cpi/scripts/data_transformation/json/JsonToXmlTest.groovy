@@ -31,7 +31,7 @@ class JsonToXmlTest extends Specification{
 
     def "Initial test"() {
         given: "body is set to a sample message"
-        this.msg.setBody("TEST")
+        this.msg.setBody("[]")
 
         when: "we execute the Groovy script"
         script.processData(this.msg)

@@ -6,7 +6,7 @@ import cpi.utils.MessageImpl
 import spock.lang.Shared
 import spock.lang.Specification
 
-class SetX_Message_IDTest extends Specification{
+class SetXMessageIDTest extends Specification{
 
     @Shared
     Script script
@@ -16,7 +16,7 @@ class SetX_Message_IDTest extends Specification{
 
     def setupSpec() {
         // Load Groovy Script by its package and class name
-        Class scriptClass = classLoader.loadClass("cpi.scripts.monitoring.SetX_Message_ID")
+        Class scriptClass = classLoader.loadClass("cpi.scripts.monitoring.SetXMessageID")
 
         // Create an instance of the script
         script = scriptClass.getDeclaredConstructor().newInstance() as Script

@@ -7,7 +7,7 @@ def Message processData(Message message) {
     def SAP_Sender = headers.get("SAP_Sender")
 
     final valueMapApi = ITApiFactory.getService(ValueMappingApi.class, null)
-    String receiverURL = valueMapApi.getMappedValue('package.VM.Generic',
+    def receiverURL = valueMapApi.getMappedValue('package.VM.Generic',
                                                     'package.VM.SenderSystem', SAP_Sender,
                                                     'package.VM.SAP',
                                                     'package.VM.ReceiverSystemURL')

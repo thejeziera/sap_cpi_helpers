@@ -31,7 +31,7 @@ class XmlToCsvTest extends Specification{
 
     def "Initial test"() {
         given: "body is set to a sample message"
-        this.msg.setBody("TEST")
+        this.msg.setBody("<recordSet><record><a>Text</a><b>1</b></record><record><a>Text2</a><b>2</b></record></recordSet>")
 
         when: "we execute the Groovy script"
         script.processData(this.msg)

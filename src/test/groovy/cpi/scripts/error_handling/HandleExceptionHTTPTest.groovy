@@ -9,7 +9,7 @@ import org.apache.camel.impl.DefaultExchange
 import spock.lang.Shared
 import spock.lang.Specification
 
-class HandleExceptionTest extends Specification{
+class HandleExceptionHTTPTest extends Specification{
 
     @Shared
     Script script
@@ -19,7 +19,7 @@ class HandleExceptionTest extends Specification{
 
     def setupSpec() {
         // Load Groovy Script by its package and class name
-        Class scriptClass = classLoader.loadClass("cpi.scripts.error_handling.HandleException")
+        Class scriptClass = classLoader.loadClass("cpi.scripts.error_handling.HandleExceptionHTTP")
 
         // Create an instance of the script
         script = scriptClass.getDeclaredConstructor().newInstance() as Script
