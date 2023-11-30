@@ -13,7 +13,7 @@ def Message processData(Message message) {
 
     // Initialize status, message, and errorCode variables
     def status = "error"
-    def messageText = "An error occurred during processing."
+    def messageText = "An unknown error occurred during processing."
     def errorCode = "ERR_CODE_DEFAULT"
 
     // Get the exception from the CamelExceptionCaught property
@@ -24,18 +24,22 @@ def Message processData(Message message) {
 
     // Check if the error is due to an HTTP response with status code 4XX or 5XX
     def httpResponseCode = message.getHeaders().get("CamelHttpResponseCode") as Integer
-    if (httpResponseCode != null && (httpResponseCode >= 400 && httpResponseCode < 600)) {
-        messageText = "HTTP Error ${httpResponseCode} occurred during step '${currentStep}'."
+    if (httpResponseCode != null && (httpResponseCode >= 400 && httpResponseCode < 500)) {
+        messageText = "HTTP Error ${httpResponseCode} occurred during/after step '${currentStep}':\n${camelException}"
+        errorCode = "HTTP_${httpResponseCode}"
+    }
+    else if (httpResponseCode != null && (httpResponseCode >= 500 && httpResponseCode < 600)) {
+        messageText = "HTTP Error ${httpResponseCode} occurred during/after step '${currentStep}':\n${camelException}"
         errorCode = "HTTP_${httpResponseCode}"
     }
     // Check if the error is due to a mapping error (example: missing required property)
     else if (camelException.contains("mapping")) {
-        messageText = "A mapping error occurred during step '${currentStep}': ${camelException}"
+        messageText = "A mapping error occurred during/after step '${currentStep}': ${camelException}"
         errorCode = "MAP_ERROR"
     }
     // If no specific error condition is met, use the exception message as the error message
     else {
-        messageText = "An error occurred during step '${currentStep}': ${camelException}"
+        messageText = "An error occurred during/after step '${currentStep}': ${camelException}"
         errorCode = "CPI_ERROR"
     }
 
