@@ -1,4 +1,4 @@
-package cpi.scripts.security
+package cpi.scripts.protocol_adapters.soap
 
 import com.sap.gateway.ip.core.customdev.util.Message
 import cpi.utils.CPIScriptEnhancer
@@ -6,7 +6,7 @@ import cpi.utils.MessageImpl
 import spock.lang.Shared
 import spock.lang.Specification
 
-class CredentialManagerTest extends Specification{
+class SignSoapMessageTest extends Specification{
 
     @Shared
     Script script
@@ -16,7 +16,7 @@ class CredentialManagerTest extends Specification{
 
     def setupSpec() {
         // Load Groovy Script by its package and class name
-        Class scriptClass = classLoader.loadClass("cpi.scripts.security.CredentialManager")
+        Class scriptClass = classLoader.loadClass("cpi.scripts.protocol_adapters.soap.SignSoapMessage")
 
         // Create an instance of the script
         script = scriptClass.getDeclaredConstructor().newInstance() as Script

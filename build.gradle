@@ -13,9 +13,11 @@ dependencies {
     implementation 'org.apache.groovy:groovy-all:4.0.15'
     implementation 'org.apache.httpcomponents.client5:httpclient5:5.2.1'
     implementation 'org.apache.httpcomponents:httpmime:4.5.14'
-    implementation("javax.xml.bind:jaxb-api:2.3.1")
+    implementation 'javax.xml.bind:jaxb-api:2.3.1'
     implementation 'org.apache.servicemix.specs:org.apache.servicemix.specs.activation-api-1.1:2.9.0'
     implementation 'org.osgi:org.osgi.framework:1.10.0'
+    implementation 'org.opensaml:opensaml:2.6.4'
+
 
     implementation files('sap_libs/cloud.integration.script.apis-2.7.1.jar')
     implementation files('sap_libs/com.sap.it.public.adapter.api-2.25.0.jar')

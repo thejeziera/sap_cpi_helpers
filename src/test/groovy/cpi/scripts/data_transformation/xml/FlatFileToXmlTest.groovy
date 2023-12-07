@@ -1,4 +1,4 @@
-package cpi.scripts.utilities
+package cpi.scripts.data_transformation.xml
 
 import com.sap.gateway.ip.core.customdev.util.Message
 import cpi.utils.CPIScriptEnhancer
@@ -6,7 +6,7 @@ import cpi.utils.MessageImpl
 import spock.lang.Shared
 import spock.lang.Specification
 
-class PayloadLoggerTest extends Specification{
+class FlatFileToXmlTest extends Specification{
 
     @Shared
     Script script
@@ -16,7 +16,7 @@ class PayloadLoggerTest extends Specification{
 
     def setupSpec() {
         // Load Groovy Script by its package and class name
-        Class scriptClass = classLoader.loadClass("cpi.scripts.utilities.PayloadLogger")
+        Class scriptClass = classLoader.loadClass("cpi.scripts.data_transformation.xml.FlatFileToXml")
 
         // Create an instance of the script
         script = scriptClass.getDeclaredConstructor().newInstance() as Script
@@ -31,7 +31,7 @@ class PayloadLoggerTest extends Specification{
 
     def "Initial test"() {
         given: "body is set to a sample message"
-        this.msg.setBody("TEST")
+        this.msg.setBody("<recordSet><record><a>Text</a><b>1</b></record><record><a>Text2</a><b>2</b></record></recordSet>")
 
         when: "we execute the Groovy script"
         script.processData(this.msg)

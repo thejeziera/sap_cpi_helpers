@@ -1,4 +1,4 @@
-package cpi.scripts.connectivity.oauth
+package cpi.scripts.data_transformation.json
 
 import com.sap.gateway.ip.core.customdev.util.Message
 import cpi.utils.CPIScriptEnhancer
@@ -6,7 +6,7 @@ import cpi.utils.MessageImpl
 import spock.lang.Shared
 import spock.lang.Specification
 
-class OAuthTokenGeneratorTest extends Specification{
+class JsonToCsvTest extends Specification{
 
     @Shared
     Script script
@@ -16,7 +16,7 @@ class OAuthTokenGeneratorTest extends Specification{
 
     def setupSpec() {
         // Load Groovy Script by its package and class name
-        Class scriptClass = classLoader.loadClass("cpi.scripts.connectivity.oauth.OAuthTokenGenerator")
+        Class scriptClass = classLoader.loadClass("cpi.scripts.data_transformation.json.JsonToCsv")
 
         // Create an instance of the script
         script = scriptClass.getDeclaredConstructor().newInstance() as Script
@@ -31,7 +31,7 @@ class OAuthTokenGeneratorTest extends Specification{
 
     def "Initial test"() {
         given: "body is set to a sample message"
-        this.msg.setBody("TEST")
+        this.msg.setBody("[]")
 
         when: "we execute the Groovy script"
         script.processData(this.msg)

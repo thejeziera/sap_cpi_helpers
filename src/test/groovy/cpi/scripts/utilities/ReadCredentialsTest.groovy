@@ -1,4 +1,4 @@
-package cpi.scripts.connectivity.ssl
+package cpi.scripts.utilities
 
 import com.sap.gateway.ip.core.customdev.util.Message
 import cpi.utils.CPIScriptEnhancer
@@ -6,7 +6,7 @@ import cpi.utils.MessageImpl
 import spock.lang.Shared
 import spock.lang.Specification
 
-class CertificateValidatorTest extends Specification{
+class ReadCredentialsTest extends Specification{
 
     @Shared
     Script script
@@ -16,7 +16,7 @@ class CertificateValidatorTest extends Specification{
 
     def setupSpec() {
         // Load Groovy Script by its package and class name
-        Class scriptClass = classLoader.loadClass("cpi.scripts.connectivity.ssl.CertificateValidator")
+        Class scriptClass = classLoader.loadClass("cpi.scripts.utilities.ReadCredentials")
 
         // Create an instance of the script
         script = scriptClass.getDeclaredConstructor().newInstance() as Script
