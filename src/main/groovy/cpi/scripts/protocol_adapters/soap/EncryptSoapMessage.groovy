@@ -3,6 +3,7 @@ package cpi.scripts.protocol_adapters.soap
 import com.sap.gateway.ip.core.customdev.util.Message
 import com.sap.it.api.ITApiFactory
 import com.sap.it.api.keystore.KeystoreService
+import org.apache.xml.security.Init
 
 import javax.crypto.SecretKey
 import javax.xml.parsers.DocumentBuilderFactory
@@ -11,22 +12,18 @@ import javax.xml.transform.dom.DOMSource
 import javax.xml.transform.stream.StreamResult
 import java.security.KeyStore
 import java.security.cert.X509Certificate
-import java.io.StringWriter
-import java.io.ByteArrayInputStream
 import org.w3c.dom.Document
 import org.w3c.dom.Element
 import org.apache.xml.security.encryption.XMLCipher
 import org.apache.xml.security.encryption.EncryptedData
 import org.apache.xml.security.encryption.EncryptedKey
-import org.apache.xml.security.encryption.XMLEncryptionException
 import org.apache.xml.security.utils.EncryptionConstants
-import org.apache.xml.security.utils.XMLUtils
-import org.apache.xml.security.keys.KeyInfoFactory
-
-// Initialize Apache XML Security library
-org.apache.xml.security.Init.init()
+import org.apache.xml.security.keys.KeyInfo
 
 def Message processData(Message message) {
+    // Initialize Apache XML Security library
+    Init.init()
+
     // Retrieve the key alias and keystore entry name from message headers
     String keyAlias = message.getHeader("keyAlias", String)
     String keystoreEntryName = message.getHeader("keystoreEntryName", String)
@@ -34,7 +31,7 @@ def Message processData(Message message) {
     // Retrieve the certificate from the keystore
     KeystoreService keystoreService = ITApiFactory.getApi(KeystoreService.class, null)
     KeyStore.PrivateKeyEntry keyEntry = keystoreService.getPrivateKeyEntry(keyAlias, keystoreEntryName)
-    X509Certificate cert = keyEntry.getCertificate()
+    X509Certificate cert = keyEntry.getCertificate() as X509Certificate
 
     // Parse the existing SOAP message into a DOM Document
     def dbFactory = DocumentBuilderFactory.newInstance()

@@ -17,6 +17,7 @@ dependencies {
     implementation 'org.apache.servicemix.specs:org.apache.servicemix.specs.activation-api-1.1:2.9.0'
     implementation 'org.osgi:org.osgi.framework:1.10.0'
     implementation 'org.opensaml:opensaml:2.6.4'
+    implementation 'org.apache.santuario:xmlsec:4.0.1'
 
 
     implementation files('sap_libs/cloud.integration.script.apis-2.7.1.jar')
