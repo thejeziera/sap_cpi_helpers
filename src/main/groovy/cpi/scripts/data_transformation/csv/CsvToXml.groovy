@@ -27,7 +27,7 @@ def Message processData(Message message) {
             def fields = line.split(',')
             xml.record {
                 headers.eachWithIndex { header, index ->
-                    "${header}".value(fields[index])
+                    "${header}"(fields[index])
                 }
             }
         }
