@@ -4,42 +4,57 @@ import com.sap.gateway.ip.core.customdev.util.Message
 import com.sap.it.api.securestore.SecureStoreService
 import com.sap.it.api.securestore.UserCredential
 import com.sap.it.api.ITApiFactory
-import com.sap.it.api.securestore.exception.SecureStoreException
 
 def Message processData(Message message) {
+    // --- Step 1: Read logMode from properties; default to "NONE" ---
+    def properties = message.getProperties()
+    def logMode = (properties.get("logMode") ?: "NONE") as String
+
+    // --- Step 2: Read credentialAlias from properties ---
+    def alias = properties.get("credentialAlias") as String
+
+    // --- Step 3: Validate credentialAlias — throw if null or blank ---
+    if (!alias) {
+        throw new IllegalArgumentException("credentialAlias property is required but was not set")
+    }
+
+    // --- Step 4: Obtain messageLog (null-safe; standard CPI MPL plumbing) ---
+    def messageLog = messageLogFactory.getMessageLog(message)
+
     try {
-        // Get the SecureStoreService API
-        SecureStoreService secureStoreService = ITApiFactory.getApi(SecureStoreService.class, null)
+        // --- Step 5: Retrieve SecureStoreService via ITApiFactory ---
+        def secureStoreService = ITApiFactory.getApi(SecureStoreService.class, null)
+
+        // --- Step 6: Validate SecureStoreService is not null ---
         if (secureStoreService == null) {
             throw new IllegalStateException("SecureStoreService is not available")
         }
 
-        // Retrieve User Credentials
-        String userCredAlias = "YourUserCredentialAlias" // Replace with your actual alias
-        UserCredential userCredentials = secureStoreService.getUserCredential(userCredAlias)
-        if (userCredentials != null) {
-            String username = userCredentials.getUsername()
-            String password = userCredentials.getPassword()
-            message.setProperty("username", username)
-            message.setProperty("password", password)
+        // --- Step 7: Look up the UserCredential by alias ---
+        def credential = secureStoreService.getUserCredential(alias)
+
+        // --- Step 8: Validate the returned credential is not null ---
+        if (credential == null) {
+            throw new IllegalStateException("No credential found for alias: " + alias)
         }
 
-        // Retrieve OAuth2 Client Credentials
-        String oauth2Alias = "YourOAuth2CredentialAlias" // Replace with your actual alias
-        Map<String, String> oauth2Credentials = secureStoreService.getOAuth2ClientCredentials(oauth2Alias)
-        if (oauth2Credentials != null) {
-            String clientId = oauth2Credentials.get("client_id")
-            String clientSecret = oauth2Credentials.get("client_secret")
-            message.setProperty("clientId", clientId)
-            message.setProperty("clientSecret", clientSecret)
+        // --- Steps 9–12: Extract username and password; set as message properties ---
+        def username = credential.getUsername()
+        // new String() safely handles both String and char[] return types from getPassword()
+        def password = new String(credential.getPassword())
+        message.setProperty("username", username)
+        message.setProperty("password", password)
+
+        // --- Step 13: Log credentialAlias to MPL if logMode is INFO ---
+        if ("INFO" == logMode) {
+            messageLog?.addCustomHeaderProperty("credentialAlias", alias)
         }
 
-        // Add more credential types as needed
-
-    } catch (SecureStoreException e) {
-        message.setHeader("ScriptException", e.getMessage())
+    } catch (Exception e) {
+        // Re-throw all exceptions unchanged — no header mutation on error
         throw e
     }
 
+    // --- Step 14: Return message; payload is not modified ---
     return message
 }
