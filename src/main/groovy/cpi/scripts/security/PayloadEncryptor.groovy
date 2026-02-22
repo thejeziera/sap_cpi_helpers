@@ -2,46 +2,74 @@ package cpi.scripts.security
 
 import com.sap.gateway.ip.core.customdev.util.Message
 import com.sap.it.api.ITApiFactory
-import com.sap.it.api.keystore.KeystoreService
+import com.sap.it.api.securestore.SecureStoreService
+import com.sap.it.api.securestore.UserCredential
 import javax.crypto.Cipher
+import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
+import java.security.SecureRandom
+import java.util.Base64
 
 def Message processData(Message message) {
-    // Retrieve key alias and keystore entry name from message headers
-    String keyAlias = message.getHeader("keyAlias", String)
-    String keystoreEntryName = message.getHeader("keystoreEntryName", String)
+    def properties = message.getProperties()
 
-    // Retrieve the key from the keystore
-    byte[] keyBytes = getKeyFromKeystore(keyAlias, keystoreEntryName)
+    // --- Step 1: Read logMode from properties; default "NONE" ---
+    def logMode = (properties.get("logMode") ?: "NONE") as String
 
-    // Check if key was retrieved successfully
-    if (keyBytes == null) {
-        throw new IllegalStateException("Encryption key could not be retrieved")
+    // --- Step 2: Read and validate enc_credentialAlias ---
+    def alias = properties.get("enc_credentialAlias") as String
+    if (!alias) {
+        throw new IllegalArgumentException("enc_credentialAlias property is required but was not set")
     }
 
-    // Prepare the AES cipher
-    SecretKeySpec secretKey = new SecretKeySpec(keyBytes, "AES")
-    Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding") // Adjust the algorithm/mode/padding as needed
-    cipher.init(Cipher.ENCRYPT_MODE, secretKey)
+    // --- Step 3: Obtain messageLog ---
+    def messageLog = messageLogFactory.getMessageLog(message)
 
-    // Retrieve and encrypt the payload
-    String payload = message.getBody(String)
-    byte[] encryptedBytes = cipher.doFinal(payload.getBytes("UTF-8"))
+    // --- Step 4: Get SecureStoreService; validate not null ---
+    def secureStoreService = ITApiFactory.getApi(SecureStoreService.class, null)
+    if (secureStoreService == null) {
+        throw new IllegalStateException("SecureStoreService is not available")
+    }
 
-    // Encode the encrypted bytes to Base64 and set as the new message body
-    String encryptedPayload = Base64.getEncoder().encodeToString(encryptedBytes)
+    // --- Step 5: Get UserCredential by alias; validate not null ---
+    def credential = secureStoreService.getUserCredential(alias)
+    if (credential == null) {
+        throw new IllegalStateException("No credential found for alias: " + alias)
+    }
+
+    // --- Step 6: Decode the Base64-encoded AES key from the credential password ---
+    def rawPass = new String(credential.getPassword())
+    def keyBytes = Base64.getDecoder().decode(rawPass.trim())
+
+    // --- Step 7: Read plaintext payload as bytes ---
+    def payloadBytes = (message.getBody() as String).getBytes("UTF-8")
+
+    // --- Step 8: Generate a cryptographically random 16-byte IV ---
+    def iv = new byte[16]
+    new SecureRandom().nextBytes(iv)
+
+    // --- Step 9: Initialise AES/CBC cipher in ENCRYPT_MODE with the random IV ---
+    def secretKey = new SecretKeySpec(keyBytes, "AES")
+    def cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+    cipher.init(Cipher.ENCRYPT_MODE, secretKey, new IvParameterSpec(iv))
+
+    // --- Step 10: Encrypt the payload ---
+    def ciphertext = cipher.doFinal(payloadBytes)
+
+    // --- Step 11: Prepend IV to ciphertext — output = IV[16] || ciphertext ---
+    def combined = new byte[16 + ciphertext.length]
+    System.arraycopy(iv, 0, combined, 0, 16)
+    System.arraycopy(ciphertext, 0, combined, 16, ciphertext.length)
+
+    // --- Step 12: Base64-encode the combined IV+ciphertext and set as body ---
+    def encryptedPayload = Base64.getEncoder().encodeToString(combined)
     message.setBody(encryptedPayload)
+
+    // --- Step 14: Log diagnostics if logMode is INFO ---
+    if ("INFO" == logMode) {
+        messageLog?.addCustomHeaderProperty("enc_credentialAlias", alias)
+        messageLog?.addCustomHeaderProperty("enc_payloadLength", String.valueOf(payloadBytes.length))
+    }
 
     return message
 }
-
-byte[] getKeyFromKeystore(String keyAlias, String keystoreEntryName) {
-    try {
-        KeystoreService keystoreService = ITApiFactory.getApi(KeystoreService.class, null)
-        return keystoreService.getPrivateKeyEntry(keyAlias, keystoreEntryName).getPrivateKey().getEncoded()
-    } catch (Exception e) {
-        // Log error or handle exception
-        return null
-    }
-}
-
