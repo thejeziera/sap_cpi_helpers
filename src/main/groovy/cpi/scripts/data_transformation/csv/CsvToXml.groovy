@@ -7,10 +7,21 @@ def Message processData(Message message) {
     // Retrieve the CSV content from the message body
     def csvContent = message.getBody() as String
 
-    // Split the CSV content into lines
-    def lines = csvContent.split('\n')
+    // Read logMode from properties (default NONE)
+    def logMode = message.getProperties().get("logMode") ?: "NONE"
+
+    // Obtain messageLog (null-safe: getMessageLog may return null at runtime)
+    def messageLog = messageLogFactory.getMessageLog(message)
+
+    // Validate: null or blank body
+    if (!csvContent?.trim()) {
+        throw new IllegalArgumentException("CSV body is missing or blank")
+    }
+
+    // Split on both LF and CRLF line endings
+    def lines = csvContent.split(/\r?\n/)
     if (lines.size() < 2) {
-        throw new RuntimeException("CSV content must have at least one header line and one data line")
+        throw new IllegalArgumentException("CSV must contain at least a header row and one data row")
     }
 
     // Extract the header fields from the first line
@@ -27,7 +38,9 @@ def Message processData(Message message) {
             def fields = line.split(',')
             xml.record {
                 headers.eachWithIndex { header, index ->
-                    "${header}"(fields[index])
+                    // Bounds-safe field access; trim header name and value
+                    def value = index < fields.size() ? fields[index].trim() : ""
+                    "${header.trim()}"(value)
                 }
             }
         }
@@ -35,6 +48,11 @@ def Message processData(Message message) {
 
     // Set the XML content as the message body
     message.setBody(writer.toString())
+
+    // logMode INFO: log the number of data rows processed
+    if (logMode == "INFO") {
+        messageLog?.addCustomHeaderProperty("csv_rowCount", String.valueOf(lines.size() - 1))
+    }
 
     return message
 }

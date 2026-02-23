@@ -7,10 +7,21 @@ def Message processData(Message message) {
     // Retrieve the CSV content from the message body
     def csvContent = message.getBody() as String
 
-    // Split the CSV content into lines
-    def lines = csvContent.split('\n')
+    // Read logMode property (default: NONE)
+    def logMode = message.getProperties().get("logMode") ?: "NONE"
+
+    // Obtain message log (null-safe; may be null if MPL is not active)
+    def messageLog = messageLogFactory.getMessageLog(message)
+
+    // Validate: body must not be null or blank
+    if (!csvContent?.trim()) {
+        throw new IllegalArgumentException("CSV body is missing or blank")
+    }
+
+    // Split the CSV content into lines — handles both LF and CRLF
+    def lines = csvContent.split(/\r?\n/)
     if (lines.size() < 2) {
-        throw new RuntimeException("CSV content must have at least one header line and one data line")
+        throw new IllegalArgumentException("CSV must contain at least a header row and one data row")
     }
 
     // Extract the header fields from the first line
@@ -21,7 +32,9 @@ def Message processData(Message message) {
         def fields = line.split(',')
         def rowMap = [:]
         headers.eachWithIndex { header, index ->
-            rowMap[header.trim()] = fields[index].trim()
+            // ASSUMPTION: missing fields in short rows are mapped to empty string
+            def value = index < fields.size() ? fields[index].trim() : ""
+            rowMap[header.trim()] = value
         }
         return rowMap
     }
@@ -31,6 +44,11 @@ def Message processData(Message message) {
 
     // Set the JSON content as the message body
     message.setBody(jsonContent)
+
+    // Log row count to MPL when logMode is INFO
+    if (logMode == "INFO") {
+        messageLog?.addCustomHeaderProperty("csv_rowCount", String.valueOf(data.size()))
+    }
 
     return message
 }

@@ -1,42 +1,185 @@
 package cpi.scripts.data_transformation.xml
 
-import com.sap.gateway.ip.core.customdev.util.Message
 import cpi.utils.CPIScriptEnhancer
 import cpi.utils.MessageImpl
 import spock.lang.Shared
 import spock.lang.Specification
 
-class XmlToCsvTest extends Specification{
+class XmlToCsvTest extends Specification {
 
-    @Shared
-    Script script
-    private Message msg
-    @Shared
-    private classLoader = new GroovyClassLoader()
+    @Shared Script script
+    @Shared private GroovyClassLoader classLoader = new GroovyClassLoader()
+    private MessageImpl msg
 
     def setupSpec() {
-        // Load Groovy Script by its package and class name
         Class scriptClass = classLoader.loadClass("cpi.scripts.data_transformation.xml.XmlToCsv")
-
-        // Create an instance of the script
         script = scriptClass.getDeclaredConstructor().newInstance() as Script
-
-        // Mix in the trait to add extra methods and fields
         CPIScriptEnhancer.enhanceScript(script)
     }
 
     def setup() {
-        this.msg = new MessageImpl()
+        msg = new MessageImpl()
     }
 
-    def "Initial test"() {
-        given: "body is set to a sample message"
-        this.msg.setBody("<recordSet><record><a>Text</a><b>1</b></record><record><a>Text2</a><b>2</b></record></recordSet>")
+    // ---------------------------------------------------------------------------
+    // Happy path
+    // ---------------------------------------------------------------------------
 
-        when: "we execute the Groovy script"
-        script.processData(this.msg)
+    def "Happy path: multi-record XML produces header row and one data row per record"() {
+        given:
+        msg.setBody("<records><record><name>Alice</name><age>30</age></record><record><name>Bob</name><age>25</age></record></records>")
 
-        then: "script is executed"
-        this.msg.getBody() != null
+        and: "scope-creep snapshot"
+        def headersBefore = new LinkedHashMap(msg.getHeaders())
+        def propsBefore   = new LinkedHashMap(msg.getProperties())
+
+        when:
+        script.processData(msg)
+
+        then:
+        msg.getBody() == "name,age\nAlice,30\nBob,25"
+
+        and: "no trailing newline"
+        !(msg.getBody() as String).endsWith('\n')
+
+        and: "no-scope-creep: no headers written"
+        msg.getHeaders() == headersBefore
+
+        and: "no-scope-creep: no properties written"
+        msg.getProperties() == propsBefore
+    }
+
+    def "Happy path: single-record XML produces header row and one data row"() {
+        given:
+        msg.setBody("<root><record><id>1</id><value>hello</value></record></root>")
+
+        when:
+        script.processData(msg)
+
+        then:
+        msg.getBody() == "id,value\n1,hello"
+    }
+
+    // ---------------------------------------------------------------------------
+    // Error handling
+    // ---------------------------------------------------------------------------
+
+    def "Null body throws IllegalArgumentException with missing or blank message"() {
+        given:
+        msg.setBody(null)
+
+        when:
+        script.processData(msg)
+
+        then:
+        def ex = thrown(IllegalArgumentException)
+        ex.message == "XML body is missing or blank"
+    }
+
+    def "Blank body throws IllegalArgumentException with missing or blank message"() {
+        given:
+        msg.setBody("   ")
+
+        when:
+        script.processData(msg)
+
+        then:
+        def ex = thrown(IllegalArgumentException)
+        ex.message == "XML body is missing or blank"
+    }
+
+    def "XML with no record elements throws IllegalArgumentException with no record elements message"() {
+        given:
+        msg.setBody("<root><item><a>1</a></item></root>")
+
+        when:
+        script.processData(msg)
+
+        then:
+        def ex = thrown(IllegalArgumentException)
+        ex.message == "No record elements found in XML"
+    }
+
+    // ---------------------------------------------------------------------------
+    // Boundary / structural cases
+    // ---------------------------------------------------------------------------
+
+    def "Record element missing a field produces empty string for that column"() {
+        given: "second record is missing the <age> element"
+        msg.setBody("<records><record><name>Alice</name><age>30</age></record><record><name>Bob</name></record></records>")
+
+        when:
+        script.processData(msg)
+
+        then:
+        msg.getBody() == "name,age\nAlice,30\nBob,"
+    }
+
+    def "Alternative root element name is supported — records found anywhere in the tree"() {
+        given: "records wrapped in a deeply nested root"
+        msg.setBody("<envelope><payload><data><record><x>1</x><y>2</y></record><record><x>3</x><y>4</y></record></data></payload></envelope>")
+
+        when:
+        script.processData(msg)
+
+        then:
+        msg.getBody() == "x,y\n1,2\n3,4"
+    }
+
+    // ---------------------------------------------------------------------------
+    // logMode behaviour
+    // ---------------------------------------------------------------------------
+
+    def "logMode=INFO logs xml_rowCount as MPL custom header property"() {
+        given:
+        msg.setBody("<records><record><col>A</col></record><record><col>B</col></record></records>")
+        msg.setProperty("logMode", "INFO")
+
+        when:
+        script.processData(msg)
+
+        then:
+        def mplLog = script.messageLogFactory.messageLog
+        mplLog.customHeaderPropertiesMap["xml_rowCount"] == "2"
+    }
+
+    def "logMode=NONE (default): no MPL custom header properties added"() {
+        given:
+        msg.setBody("<records><record><col>A</col></record></records>")
+        // logMode not set — defaults to NONE
+
+        when:
+        script.processData(msg)
+
+        then:
+        def mplLog = script.messageLogFactory.messageLog
+        mplLog.customHeaderPropertiesMap.isEmpty()
+    }
+
+    // ---------------------------------------------------------------------------
+    // Scope-creep guard
+    // ---------------------------------------------------------------------------
+
+    def "Scope-creep guard: no headers set, no properties written, only body changed to CSV"() {
+        given:
+        msg.setBody("<r><record><field>value</field></record></r>")
+        msg.setHeader("existingHeader", "headerVal")
+        msg.setProperty("existingProp", "propVal")
+
+        and: "snapshot before execution"
+        def headersBefore = new LinkedHashMap(msg.getHeaders())
+        def propsBefore   = new LinkedHashMap(msg.getProperties())
+
+        when:
+        script.processData(msg)
+
+        then: "body has been transformed"
+        msg.getBody() == "field\nvalue"
+
+        and: "headers unchanged"
+        msg.getHeaders() == headersBefore
+
+        and: "properties unchanged (logMode was not set, so no write occurs)"
+        msg.getProperties() == propsBefore
     }
 }

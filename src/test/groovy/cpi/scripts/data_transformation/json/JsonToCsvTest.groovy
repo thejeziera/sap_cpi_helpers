@@ -5,141 +5,197 @@ import cpi.utils.CPIScriptEnhancer
 import cpi.utils.MessageImpl
 import spock.lang.Shared
 import spock.lang.Specification
+import spock.lang.Unroll
 
-class JsonToCsvTest extends Specification{
+class JsonToCsvTest extends Specification {
 
-    @Shared
-    Script script
+    @Shared Script script
+    @Shared private GroovyClassLoader classLoader = new GroovyClassLoader()
     private Message msg
-    @Shared
-    private classLoader = new GroovyClassLoader()
 
     def setupSpec() {
-        // Load Groovy Script by its package and class name
         Class scriptClass = classLoader.loadClass("cpi.scripts.data_transformation.json.JsonToCsv")
-
-        // Create an instance of the script
         script = scriptClass.getDeclaredConstructor().newInstance() as Script
-
-        // Mix in the trait to add extra methods and fields
         CPIScriptEnhancer.enhanceScript(script)
     }
 
     def setup() {
-        this.msg = new MessageImpl()
+        msg = new MessageImpl()
     }
 
-    def "Converts a simple JSON array of objects to CSV"() {
-        given: "A JSON body representing a list of records"
-        def jsonBody = '''
-        [
-            {"header_field1":"value1","header_field2":"value2"},
-            {"header_field1":"value3","header_field2":"value4"}
-        ]
-        '''
+    // ---------------------------------------------------------------------------
+    // Happy path
+    // ---------------------------------------------------------------------------
+
+    def "Happy path: two-record JSON array produces header row and two data rows"() {
+        given:
+        def jsonBody = '[{"col1":"a","col2":"b"},{"col1":"c","col2":"d"}]'
         msg.setBody(jsonBody)
 
-        when: "The script processes the message"
+        and: "snapshot for scope-creep guard"
+        def headersBefore = new LinkedHashMap(msg.getHeaders())
+        def propsBefore   = new LinkedHashMap(msg.getProperties())
+
+        when:
         script.processData(msg)
 
-        then: "We get a CSV with headers on the first line and values on subsequent lines"
-        msg.getBody() ==
-                """header_field1,header_field2
-value1,value2
-value3,value4
-"""
+        then:
+        msg.getBody() == "col1,col2\na,b\nc,d"
+
+        and: "no-scope-creep: no headers or properties written"
+        msg.getHeaders() == headersBefore
+        msg.getProperties() == propsBefore
     }
 
-    def "Converts a single-record JSON array to CSV"() {
-        given: "A JSON body with just one record"
-        def jsonBody = '''
-        [
-            {"single_header":"single_value"}
-        ]
-        '''
+    def "Happy path: single-record JSON array produces header row and one data row"() {
+        given:
+        def jsonBody = '[{"id":"1","name":"Alice"}]'
         msg.setBody(jsonBody)
 
         when:
         script.processData(msg)
 
         then:
-        msg.getBody() == """single_header
-single_value
-"""
+        msg.getBody() == "id,name\n1,Alice"
     }
 
-    def "Throws an exception for an empty JSON array"() {
-        given: "An empty JSON array"
-        def jsonBody = '[]'
+    // ---------------------------------------------------------------------------
+    // Error handling
+    // ---------------------------------------------------------------------------
+
+    @Unroll
+    def "Null or blank body throws IllegalArgumentException with missing or blank message — body=#label"() {
+        given:
+        msg.setBody(bodyValue)
+
+        when:
+        script.processData(msg)
+
+        then:
+        def ex = thrown(IllegalArgumentException)
+        ex.message == "JSON body is missing or blank"
+
+        where:
+        label   | bodyValue
+        "null"  | null
+        "empty" | ""
+        "blank" | "   "
+    }
+
+    def "Non-array JSON throws IllegalArgumentException with must be a JSON array message"() {
+        given:
+        msg.setBody('{"not":"an array"}')
+
+        when:
+        script.processData(msg)
+
+        then:
+        def ex = thrown(IllegalArgumentException)
+        ex.message == "JSON body must be a JSON array"
+    }
+
+    def "Empty JSON array throws IllegalArgumentException with must contain at least one record"() {
+        given:
+        msg.setBody('[]')
+
+        when:
+        script.processData(msg)
+
+        then:
+        def ex = thrown(IllegalArgumentException)
+        ex.message == "JSON array must contain at least one record"
+    }
+
+    // ---------------------------------------------------------------------------
+    // Boundary / transformation correctness
+    // ---------------------------------------------------------------------------
+
+    def "Record with missing field produces empty string for that column"() {
+        given:
+        // Second record is missing col2; col3 (extra key) must be ignored
+        def jsonBody = '[{"col1":"v1","col2":"v2"},{"col1":"v3","col3":"v5"}]'
         msg.setBody(jsonBody)
 
         when:
         script.processData(msg)
 
         then:
-        RuntimeException ex = thrown()
-        ex.message.contains("CSV content must have at least one header line and one data line")
-        // The actual message may differ; you may need to adjust your code or this test accordingly.
-        // If your code doesn't currently throw a custom exception here, consider updating it.
+        // col2 is missing in second record -> empty string; col3 is extra -> ignored
+        msg.getBody() == "col1,col2\nv1,v2\nv3,"
     }
 
-    def "Throws an exception if JSON is not a list of records"() {
-        given: "A JSON object instead of an array"
-        def jsonBody = '{"not":"an array"}'
+    def "Header order is determined by first record key order"() {
+        given:
+        // Groovy JsonSlurper preserves insertion order for LinkedHashMap
+        def jsonBody = '[{"z":"zv","a":"av","m":"mv"}]'
         msg.setBody(jsonBody)
 
         when:
         script.processData(msg)
 
         then:
-        RuntimeException ex = thrown()
-        ex.message.contains("JSON content is not a list of records")
+        def lines = (msg.getBody() as String).split('\n')
+        lines[0] == "z,a,m"
+        lines[1] == "zv,av,mv"
     }
 
-    def "Handles records with differing fields gracefully"() {
-        given: "A JSON body where the second record has different fields"
-        def jsonBody = '''
-        [
-            {"header_field1":"value1","header_field2":"value2"},
-            {"header_field1":"value3","header_field3":"value5"} 
-        ]
-        '''
-        // Note: Your current code just takes headers from the first record.
-        // The second record doesn't have `header_field2` and introduces `header_field3`.
-        // Current logic: headers = header_field1,header_field2 from the first record.
-        // For the second record, fields() call will just join whatever values it has.
-        // This might lead to mismatched columns. If that’s unacceptable, you may need
-        // to adjust your code to handle missing or extra fields.
-        // For now, let's test the current behavior.
+    // ---------------------------------------------------------------------------
+    // Logging behaviour
+    // ---------------------------------------------------------------------------
 
+    def "logMode=INFO logs json_rowCount as MPL custom header property"() {
+        given:
+        def jsonBody = '[{"x":"1"},{"x":"2"},{"x":"3"}]'
         msg.setBody(jsonBody)
+        msg.setProperty("logMode", "INFO")
 
         when:
         script.processData(msg)
 
         then:
-        // The output will only have headers from the first record:
-        msg.getBody() ==
-                """header_field1,header_field2
-value1,value2
-value3,
-"""
-        // Notice the second line ends with a comma for the missing field2, since values() from a map
-        // with different keys may not align. If you want consistent behavior, you'll need to
-        // adjust your code to handle differing fields more robustly.
+        def mplLog = script.messageLogFactory.messageLog
+        mplLog.customHeaderPropertiesMap["json_rowCount"] == "3"
     }
 
-    def "Throws an exception for invalid JSON"() {
-        given: "A non-parseable JSON string"
-        def jsonBody = 'this is not valid json'
+    def "logMode=NONE (default): no MPL custom header properties added"() {
+        given:
+        def jsonBody = '[{"x":"1"},{"x":"2"}]'
         msg.setBody(jsonBody)
+        // logMode property intentionally not set — default NONE
 
         when:
         script.processData(msg)
 
         then:
-        thrown(groovy.json.JsonException)
-        // You may catch a JsonException or other parse exceptions.
-        // Adjust the test to match the actual exception thrown.
+        def mplLog = script.messageLogFactory.messageLog
+        mplLog.customHeaderPropertiesMap.isEmpty()
+    }
+
+    // ---------------------------------------------------------------------------
+    // Scope-creep guard
+    // ---------------------------------------------------------------------------
+
+    def "Scope-creep guard: no headers set, no properties written, only body changed to CSV"() {
+        given:
+        msg.setBody('[{"k":"v"}]')
+        msg.setHeader("existingHeader", "hval")
+        msg.setProperty("existingProp", "pval")
+
+        and: "snapshot before"
+        def headersBefore = new LinkedHashMap(msg.getHeaders())
+        def propsBefore   = new LinkedHashMap(msg.getProperties())
+
+        when:
+        script.processData(msg)
+
+        then:
+        // Only body changed
+        msg.getBody() == "k\nv"
+
+        and: "headers untouched"
+        msg.getHeaders() == headersBefore
+
+        and: "properties untouched (logMode was never set so none added)"
+        msg.getProperties() == propsBefore
     }
 }

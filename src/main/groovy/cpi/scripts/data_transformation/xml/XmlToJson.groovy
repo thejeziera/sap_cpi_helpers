@@ -5,14 +5,22 @@ import groovy.json.JsonOutput
 import groovy.xml.XmlSlurper
 
 def Message processData(Message message) {
-    // Retrieve the XML content from the message body
+    // Read the XML body as a String
     def xmlContent = message.getBody() as String
 
-    // Parse the XML content
-    def xmlSlurper = new XmlSlurper()
-    def xmlData = xmlSlurper.parseText(xmlContent)
+    // Read logMode property (default: NONE)
+    def logMode = message.getProperties().get("logMode") ?: "NONE"
 
-    // Assuming XML structure is like <records><record><field1>...<field2>...</record>...</records>
+    // Obtain the MPL message log handle
+    def messageLog = messageLogFactory.getMessageLog(message)
+
+    // Guard: null or blank body is not acceptable
+    if (!xmlContent?.trim()) throw new IllegalArgumentException("XML body is missing or blank")
+
+    // Parse XML inline
+    def xmlData = new XmlSlurper().parseText(xmlContent)
+
+    // Find all <record> elements anywhere in the tree and convert each to a field-name:field-text map
     def records = xmlData.'**'.findAll{ it.name() == 'record' }.collect { node ->
         def recordMap = [:]
         node.children().each { child ->
@@ -21,11 +29,14 @@ def Message processData(Message message) {
         return recordMap
     }
 
-    // Convert the list of maps to JSON
+    // Serialise the list of maps to a JSON array
     def jsonContent = JsonOutput.toJson(records)
 
-    // Set the JSON content as the message body
+    // Write JSON body
     message.setBody(jsonContent)
+
+    // INFO logging: record count as MPL custom header property
+    if (logMode == "INFO") messageLog?.addCustomHeaderProperty("xml_recordCount", String.valueOf(records.size()))
 
     return message
 }

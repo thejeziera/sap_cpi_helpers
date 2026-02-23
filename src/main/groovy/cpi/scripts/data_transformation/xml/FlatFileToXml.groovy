@@ -2,32 +2,42 @@ package cpi.scripts.data_transformation.xml
 
 import com.sap.gateway.ip.core.customdev.util.Message
 import groovy.xml.MarkupBuilder
-import java.io.StringWriter
 
 def Message processData(Message message) {
-    // Retrieve the flat file content from the message body
+    // Read the flat file content from the message body
     def flatFileContent = message.getBody() as String
 
-    // Define the structure of the flat file (field name and length)
-    def fieldStructure = [
-            [name: "field1", length: 10],
-            [name: "field2", length: 5],
-            [name: "field3", length: 8]
-            // Add more fields as per your flat file structure
-    ]
+    // Read logMode property (default: NONE)
+    def logMode = message.getProperties().get("logMode") ?: "NONE"
 
-    // Root node name
-    def rootNodeName = "records" // Replace with your root node name
+    // Obtain the MPL message log (may be null in some runtime contexts)
+    def messageLog = messageLogFactory.getMessageLog(message)
+
+    // Validate body is not null or blank
+    if (!flatFileContent?.trim()) {
+        throw new IllegalArgumentException("Flat file body is missing or blank")
+    }
+
+    // Read and validate the flatFile_fieldSpec property
+    def fieldSpecProp = message.getProperties().get("flatFile_fieldSpec") as String
+    if (!fieldSpecProp?.trim()) {
+        throw new IllegalArgumentException("Property flatFile_fieldSpec is required (e.g. 'field1:10,field2:5')")
+    }
+    // ASSUMPTION: flatFile_fieldSpec format is comma-separated name:length pairs (e.g. "firstName:15,lastName:20"); malformed tokens will propagate as runtime errors
+    def fieldStructure = fieldSpecProp.trim().split(',').collect { token ->
+        def parts = token.trim().split(':')
+        [name: parts[0].trim(), length: Integer.parseInt(parts[1].trim())]
+    }
+
+    // Split the file content into lines, supporting both LF and CRLF line endings
+    def lines = flatFileContent.split(/\r?\n/)
 
     // Initialize a StringWriter for the XML output
     def writer = new StringWriter()
     def xml = new MarkupBuilder(writer)
 
-    // Split the file content into lines (rows)
-    def lines = flatFileContent.split('\n')
-
-    // Start the XML document with the root node
-    xml."${rootNodeName}" {
+    // Build XML with <records> root element and one <record> per line
+    xml.records {
         lines.each { line ->
             def currentPosition = 0
             xml.record {
@@ -41,8 +51,13 @@ def Message processData(Message message) {
         }
     }
 
-    // Set the XML content as the message body
+    // Set the generated XML as the message body
     message.setBody(writer.toString())
+
+    // Log row count when logMode is INFO
+    if (logMode == "INFO") {
+        messageLog?.addCustomHeaderProperty("ff_rowCount", String.valueOf(lines.size()))
+    }
 
     return message
 }
