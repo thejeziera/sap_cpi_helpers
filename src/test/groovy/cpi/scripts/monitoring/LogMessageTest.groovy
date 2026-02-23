@@ -29,29 +29,104 @@ class LogMessageTest extends Specification {
         this.msg = new MessageImpl()
     }
 
-    def "Initial test"() {
-        given: "body is set to a sample message"
-        this.msg.setBody("TEST")
+    def "Message headers are logged to MPL as HEADER underscore key custom header properties"() {
+        given:
+        msg.setHeader("Header1", "V1")
+        msg.setHeader("Header2", "V2")
+        msg.setMessageLog(script.messageLogFactory.getMessageLog("LogMessage"))
 
-        when: "we execute the Groovy script"
-        script.processData(this.msg)
+        when:
+        script.processData(msg)
 
-        then: "script is executed"
-        this.msg.getBody() != null
+        then:
+        def mplLog = script.messageLogFactory.messageLog
+        mplLog.customHeaderPropertiesMap.get("HEADER_Header1") == "V1"
+        mplLog.customHeaderPropertiesMap.get("HEADER_Header2") == "V2"
     }
 
-    def "Given set of headers and properties when script is executed then they are put in messageLog properties"() {
-        given: "a sample headers, properties and body"
-        this.msg.setBody("TEST")
-        this.msg.setHeader("Header1", "HeaderValue1")
-        this.msg.setHeader("Header2", "HeaderValue2")
-        this.msg.setProperty("Property1", "PropertyValue1")
-        this.msg.setMessageLog(this.script.messageLogFactory.getMessageLog("LogMessage"))
+    def "Message properties are logged to MPL as PROPERTY underscore key custom header properties"() {
+        given:
+        msg.setProperty("Prop1", "PV1")
+        msg.setProperty("Prop2", "PV2")
+        msg.setMessageLog(script.messageLogFactory.getMessageLog("LogMessage"))
 
-        when: "we execute the Groovy script"
-        script.processData(this.msg)
+        when:
+        script.processData(msg)
 
-        then: "messageLog contains all the headers, properties and body as attachment"
-        this.msg.getMessageLog().printMessageLogContent()
+        then:
+        def mplLog = script.messageLogFactory.messageLog
+        mplLog.customHeaderPropertiesMap.get("PROPERTY_Prop1") == "PV1"
+        mplLog.customHeaderPropertiesMap.get("PROPERTY_Prop2") == "PV2"
+    }
+
+    def "Message body is added to MPL as Message Body attachment with content type text/plain"() {
+        given:
+        msg.setBody("BODY_CONTENT")
+        msg.setMessageLog(script.messageLogFactory.getMessageLog("LogMessage"))
+
+        when:
+        script.processData(msg)
+
+        then:
+        def mplLog = script.messageLogFactory.messageLog
+        mplLog.attachmentMap.get("Message Body;_;text/plain") == "BODY_CONTENT"
+    }
+
+    def "Null header value is handled gracefully and logged as empty string"() {
+        given:
+        msg.setHeader("NullHeader", null)
+        msg.setMessageLog(script.messageLogFactory.getMessageLog("LogMessage"))
+
+        when:
+        script.processData(msg)
+
+        then:
+        notThrown(Exception)
+        def mplLog = script.messageLogFactory.messageLog
+        mplLog.customHeaderPropertiesMap.get("HEADER_NullHeader") == ""
+    }
+
+    def "Null body is handled gracefully and attachment content is empty string"() {
+        given:
+        msg.setBody(null)
+        msg.setMessageLog(script.messageLogFactory.getMessageLog("LogMessage"))
+
+        when:
+        script.processData(msg)
+
+        then:
+        notThrown(Exception)
+        def mplLog = script.messageLogFactory.messageLog
+        mplLog.attachmentMap.get("Message Body;_;text/plain") == ""
+    }
+
+    def "No messageLog configured: script completes without exception and body is unchanged"() {
+        given:
+        msg.setBody("UNCHANGED")
+        // intentionally do NOT call setMessageLog — messageLog in script will be null
+
+        when:
+        script.processData(msg)
+
+        then:
+        notThrown(Exception)
+        msg.getBody() == "UNCHANGED"
+    }
+
+    def "Scope-creep guard: body unchanged, no headers or properties written to message"() {
+        given:
+        msg.setHeader("H", "V")
+        msg.setProperty("P", "Q")
+        msg.setBody("BODY")
+        def headersBefore = new LinkedHashMap(msg.getHeaders())
+        def propsBefore = new LinkedHashMap(msg.getProperties())
+
+        when:
+        script.processData(msg)
+
+        then:
+        msg.getBody() == "BODY"
+        msg.getHeaders() == headersBefore
+        msg.getProperties() == propsBefore
     }
 }
