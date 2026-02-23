@@ -5,58 +5,72 @@ import org.apache.http.entity.mime.MultipartEntityBuilder
 import org.apache.http.entity.ContentType
 
 def Message processData(Message message) {
-    // Extract the fileName and fileType properties
-    def fileName = message.getProperty("p_attachment_filename")
-    def fileType = message.getProperty("p_attachment_filetype")
+    def properties = message.getProperties()
 
-    // Allowed file types in SAP Concur
-    def allowedFileTypes = ["PNG", "PDF", "TIFF", "JPEG", "JPG"]
+    // Read logMode; default NONE
+    def logMode = properties.get("logMode") ?: "NONE"
 
-    // Check if the file type is allowed
-    if (allowedFileTypes.contains(fileType.toUpperCase())) {
-        // Check if the file name already has an extension
-        def extensionPattern = ~/\..{2,4}$/
-//        if (!fileName.matches(extensionPattern)) {
-//            // Append the file type as an extension
-//            fileName = "${fileName}.${fileType.toLowerCase()}"
-//        }
-    } else {
-        // Handle unsupported file types - log a warning and return the original fileName
-        System.err.println("Unsupported file type '${fileType}' for file '${fileName}'.")
+    // Read optional text-part configuration; defaults applied where not set
+    def textPartName = properties.get("mp_textPartName") ?: "text"
+    def textMimeType = properties.get("mp_textMimeType") ?: "application/json"
+
+    // Read required text content; validate
+    def textContent = properties.get("mp_textContent")
+    if (!textContent) {
+        throw new IllegalArgumentException("mp_textContent property is required but was not set")
     }
 
-    // Set the modified fileName property back to the message
-    message.setProperty("p_attachment_filename", fileName)
+    // Read optional image-part name; default "image"
+    def imagePartName = properties.get("mp_imagePartName") ?: "image"
 
-    // Extract binary data from the message body
-    byte[] attachmentBinaryData = message.getBody() as byte[]
+    // Read required image name; validate
+    def imageName = properties.get("mp_imageName")
+    if (!imageName) {
+        throw new IllegalArgumentException("mp_imageName property is required but was not set")
+    }
 
-    // Retrieve the Expense body for creating the multipart message
-    def concurBody = message.getProperty("p_expense_body")
+    // Read required image MIME type; validate
+    def imageMimeType = properties.get("mp_imageMimeType")
+    if (!imageMimeType) {
+        throw new IllegalArgumentException("mp_imageMimeType property is required but was not set")
+    }
 
-    // Create the multipart message
-    MultipartEntityBuilder multipartEntityBuilder = MultipartEntityBuilder.create()
+    // Obtain MPL message log (null-safe usage below)
+    def messageLog = messageLogFactory.getMessageLog(message)
 
-    // Add the Concur JSON payload as a part of the multipart message
-    multipartEntityBuilder.addTextBody("quickExpenseRequest", concurBody as String, ContentType.APPLICATION_JSON)
+    // Read binary image body and validate not null/empty
+    def imageBytes = message.getBody() as byte[]
+    if (imageBytes == null || imageBytes.length == 0) {
+        throw new IllegalArgumentException("Image body is missing or empty")
+    }
 
-    // Add the binary attachment as a part of the multipart message
-    multipartEntityBuilder.addBinaryBody("fileContent", attachmentBinaryData, ContentType.create(fileType as String), fileName as String)
+    // Build multipart/form-data entity
+    def builder = MultipartEntityBuilder.create()
 
-    // Build the multipart entity and set it as the message body
-    def multipartEntity = multipartEntityBuilder.build()
+    // Add text part using configurable part name and MIME type
+    builder.addTextBody(textPartName as String, textContent as String, ContentType.create(textMimeType as String))
 
-    // Ensure correct Content-Type header boundary values
-    message.setProperty("p_content_type", "multipart/form-data; boundary=" + multipartEntity.getContentType().getValue().split("boundary=")[1])
+    // Add binary image part using configurable part name, MIME type and filename
+    builder.addBinaryBody(imagePartName as String, imageBytes, ContentType.create(imageMimeType as String), imageName as String)
 
-    // Convert MultipartEntity object to byte[] data
-    ByteArrayOutputStream out = new ByteArrayOutputStream()
+    def multipartEntity = builder.build()
+
+    // Write full Content-Type (including generated boundary) to the Content-Type header
+    message.setHeader("Content-Type", multipartEntity.getContentType().getValue())
+
+    // Serialize multipart entity to byte[]
+    def out = new ByteArrayOutputStream()
     multipartEntity.writeTo(out)
-    byte[] multipartBinaryData = out.toByteArray()
-
-    message.setProperty("p_expense_body", multipartBinaryData)
+    def multipartBinaryData = out.toByteArray()
 
     message.setBody(multipartBinaryData)
+
+    // INFO logging: image metadata diagnostics
+    if ("INFO" == logMode) {
+        messageLog?.addCustomHeaderProperty("mp_imageName",    imageName as String)
+        messageLog?.addCustomHeaderProperty("mp_imageMimeType", imageMimeType as String)
+        messageLog?.addCustomHeaderProperty("mp_imageBytes",   String.valueOf(imageBytes.length))
+    }
 
     return message
 }
